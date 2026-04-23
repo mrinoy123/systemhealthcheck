@@ -24,11 +24,11 @@ jobs:
           curl -s -o /dev/null "https://mrinoymitra1991-n8n-workflow-v5-integraded-github.hf.space"
           curl -s -o /dev/null "https://mrinoymitra1991-main-workflow-github-woker-api-headless.hf.space"
 
-      # --- 2. THE STATUS CHECK (Upgraded to 10 Minutes) ---
+      # --- 2. THE STATUS CHECK (Upgraded to 20 Minutes) ---
       - name: Verify Connectivity State
         run: |
-          echo "Waiting for initialization (Max 10 minutes)..."
-          for i in {1..20}; do
+          echo "Waiting for initialization (Max 20 minutes)..."
+          for i in {1..40}; do
             STATUS_MAIN=$(curl -s https://huggingface.co/api/spaces/${{ secrets.SPACE_MAIN }} -H "Authorization: Bearer ${{ secrets.HF_TOKEN }}" | jq -r '.runtime.stage // .stage // "UNKNOWN"')
             STATUS_API=$(curl -s https://huggingface.co/api/spaces/${{ secrets.SPACE_API }} -H "Authorization: Bearer ${{ secrets.HF_TOKEN }}" | jq -r '.runtime.stage // .stage // "UNKNOWN"')
             
@@ -42,7 +42,7 @@ jobs:
             echo "Still booting... retrying in 30s."
             sleep 30
           done
-          echo "Error: Connectivity timeout after 10 minutes." && exit 1
+          echo "Error: Connectivity timeout after 20 minutes." && exit 1
 
       # --- 3. TRIGGER MODULE A ---
       - name: Run Primary Diagnostic
