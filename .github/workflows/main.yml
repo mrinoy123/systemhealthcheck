@@ -1,4 +1,4 @@
-name: Unified News Pipeline (Hunter + Publisher)
+name: System Health Diagnostic Routine
 
 on:
   schedule:
@@ -7,78 +7,78 @@ on:
   workflow_dispatch: # Manual trigger button
 
 jobs:
-  unified-cycle:
+  diagnostic-cycle:
     runs-on: ubuntu-latest
     steps:
       # --- 1. THE WAKE-UP CALL ---
-      - name: Wake Up Both Spaces (Restart)
+      - name: Initialize Connection
         run: |
-          echo "Sending API restart commands to wake spaces..."
+          echo "Sending API restart commands..."
           curl -X POST https://huggingface.co/api/spaces/${{ secrets.SPACE_MAIN }}/restart \
           -H "Authorization: Bearer ${{ secrets.HF_TOKEN }}"
           
           curl -X POST https://huggingface.co/api/spaces/${{ secrets.SPACE_API }}/restart \
           -H "Authorization: Bearer ${{ secrets.HF_TOKEN }}"
 
-          echo "Sending Web Pings as fallback..."
+          echo "Pinging endpoints..."
           curl -s -o /dev/null "https://mrinoymitra1991-n8n-workflow-v5-integraded-github.hf.space"
           curl -s -o /dev/null "https://mrinoymitra1991-main-workflow-github-woker-api-headless.hf.space"
 
-      # --- 2. THE STATUS CHECK ---
-      - name: Wait for Spaces to be 'RUNNING'
+      # --- 2. THE STATUS CHECK (Upgraded to 10 Minutes) ---
+      - name: Verify Connectivity State
         run: |
-          echo "Waiting for initialization (Max 5 minutes)..."
-          for i in {1..10}; do
+          echo "Waiting for initialization (Max 10 minutes)..."
+          for i in {1..20}; do
             STATUS_MAIN=$(curl -s https://huggingface.co/api/spaces/${{ secrets.SPACE_MAIN }} -H "Authorization: Bearer ${{ secrets.HF_TOKEN }}" | jq -r '.runtime.stage // .stage // "UNKNOWN"')
             STATUS_API=$(curl -s https://huggingface.co/api/spaces/${{ secrets.SPACE_API }} -H "Authorization: Bearer ${{ secrets.HF_TOKEN }}" | jq -r '.runtime.stage // .stage // "UNKNOWN"')
             
             echo "Current Status -> Main: $STATUS_MAIN | API: $STATUS_API"
             
             if [ "$STATUS_MAIN" == "RUNNING" ] && [ "$STATUS_API" == "RUNNING" ]; then
-              echo "Success: Spaces are ready for AI News Tasks."
+              echo "Success: System is online and stable."
               exit 0
             fi
             
             echo "Still booting... retrying in 30s."
             sleep 30
           done
-          echo "Error: Spaces failed to reach 'RUNNING' status." && exit 1
+          echo "Error: Connectivity timeout after 10 minutes." && exit 1
 
-      # --- 3. TRIGGER PHASE 1 & 2 (The Hunter) ---
-      - name: Trigger News Hunter (Workflow A&B)
+      # --- 3. TRIGGER MODULE A ---
+      - name: Run Primary Diagnostic
         run: |
-          echo "Pinging Hunter Webhook with HF Auth..."
+          echo "Executing primary logic string..."
           curl -X POST "https://mrinoymitra1991-n8n-workflow-v5-integraded-github.hf.space/webhook/4f327c1d-b659-434d-ac97-c35674433c5b" \
           -H "Authorization: Bearer ${{ secrets.HF_TOKEN }}" \
           -H "Content-Type: application/json" \
-          -d '{"source": "github_unified_hourly"}'
+          -d '{"source": "diagnostic_routine"}'
 
-      # --- 4. THE HUNTER WINDOW (25 Minutes) ---
-      - name: Hunter Execution Gap
+      # --- 4. EXECUTION GAP ---
+      - name: System Buffer (25 Min)
         run: |
-          echo "Hunter is active. Waiting 25 minutes before starting Publisher..."
+          echo "Primary module active. Holding for 25-minute cycle..."
           sleep 1500
 
-      # --- 5. TRIGGER PHASE 3 (The Publisher) ---
-      - name: Trigger Independent Publisher (Workflow C)
+      # --- 5. TRIGGER MODULE B ---
+      - name: Run Secondary Diagnostic
         run: |
-          echo "Pinging Publisher Webhook with HF Auth..."
+          echo "Executing secondary logic string..."
           curl -X POST "https://mrinoymitra1991-n8n-workflow-v5-integraded-github.hf.space/webhook/50431bd1-c408-4ecb-a926-16cf17c8fa09" \
           -H "Authorization: Bearer ${{ secrets.HF_TOKEN }}" \
           -H "Content-Type: application/json" \
-          -d '{"source": "github_unified_publisher"}'
+          -d '{"source": "diagnostic_routine"}'
 
-      # --- 6. THE PUBLISHER WINDOW (30 Minutes) ---
-      - name: Publisher Execution Gap
+      # --- 6. POST-ROUTINE GAP ---
+      - name: Post-Routine Buffer (30 Min)
         run: |
-          echo "Publisher is active. Waiting 30 minutes for final social posts..."
+          echo "Secondary module active. Holding for 30-minute completion..."
           sleep 1800
 
-      # --- 7. THE BUDGET SAVER ---
-      - name: Deep Sleep (Pause Both Spaces)
+      # --- 7. POWER SAVE ---
+      - name: Terminate Session
         if: always() # Runs even if steps above failed
         run: |
-          echo "Task Complete. Pausing spaces to save resources..."
+          echo "Sequence complete. Entering power save..."
           curl -X POST https://huggingface.co/api/spaces/${{ secrets.SPACE_MAIN }}/pause \
           -H "Authorization: Bearer ${{ secrets.HF_TOKEN }}"
           
