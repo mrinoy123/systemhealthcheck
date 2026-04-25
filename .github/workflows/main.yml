@@ -2,33 +2,14 @@ name: System Health Diagnostic Routine
 
 on:
   schedule:
-    # 🔄 UPGRADE: Now runs EVERY hour (1:00, 2:00, 3:00, etc. UTC)
-    - cron: '0 * * * *'
+    # Runs every 2 hours at the top of the hour (12:00, 2:00, 4:00, etc. UTC)
+    - cron: '0 */2 * * *'
   workflow_dispatch: # Manual trigger button
 
 jobs:
   diagnostic-cycle:
     runs-on: ubuntu-latest
     steps:
-      # --- 0. THE INTELLIGENT ROUTER ---
-      # This determines if we run just the Scraper (Odd Hour) or Scraper + Publisher (Even Hour)
-      - name: Determine Run Cycle
-        id: router
-        run: |
-          HOUR=$(date -u +"%H")
-          # Check if hour is divisible by 2
-          REMAINDER=$((10#$HOUR % 2))
-          
-          if [ "$REMAINDER" -eq 0 ]; then
-            echo "STATUS=EVEN_HOUR" >> $GITHUB_ENV
-            echo "run_full_cycle=true" >> $GITHUB_OUTPUT
-            echo "Logic: Even Hour ($HOUR:00) detected. Running Module A + B."
-          else
-            echo "STATUS=ODD_HOUR" >> $GITHUB_ENV
-            echo "run_full_cycle=false" >> $GITHUB_OUTPUT
-            echo "Logic: Odd Hour ($HOUR:00) detected. Running Module A Only."
-          fi
-
       # --- 1. THE WAKE-UP CALL ---
       - name: Initialize Connection
         run: |
@@ -43,7 +24,7 @@ jobs:
           curl -s -o /dev/null "https://mrinoymitra1991-n8n-workflow-v5-integraded-github.hf.space"
           curl -s -o /dev/null "https://mrinoymitra1991-main-workflow-github-woker-api-headless.hf.space"
 
-      # --- 2. THE STATUS CHECK ---
+      # --- 2. THE STATUS CHECK (Upgraded to 20 Minutes) ---
       - name: Verify Connectivity State
         run: |
           echo "Waiting for initialization (Max 20 minutes)..."
@@ -63,15 +44,14 @@ jobs:
           done
           echo "Error: Connectivity timeout after 20 minutes." && exit 1
 
-      # --- 3. TRIGGER MODULE A (Phase 1 & 2) ---
-      # This runs EVERY HOUR to keep batches small and manageable.
-      - name: Run Primary Diagnostic (Scraping & Scoring)
+      # --- 3. TRIGGER MODULE A ---
+      - name: Run Primary Diagnostic
         run: |
-          echo "Executing primary logic string (Module A)..."
+          echo "Executing primary logic string..."
           curl -X POST "https://mrinoymitra1991-n8n-workflow-v5-integraded-github.hf.space/webhook/4f327c1d-b659-434d-ac97-c35674433c5b" \
           -H "Authorization: Bearer ${{ secrets.HF_TOKEN }}" \
           -H "Content-Type: application/json" \
-          -d '{"source": "diagnostic_routine", "cycle": "${{ env.STATUS }}"}'
+          -d '{"source": "diagnostic_routine"}'
 
       # --- 4. EXECUTION GAP ---
       - name: System Buffer (25 Min)
@@ -79,28 +59,24 @@ jobs:
           echo "Primary module active. Holding for 25-minute cycle..."
           sleep 1500
 
-      # --- 5. TRIGGER MODULE B (Publisher) ---
-      # This ONLY triggers on even hours (0, 2, 4, etc.)
-      - name: Run Secondary Diagnostic (Publishing)
-        if: steps.router.outputs.run_full_cycle == 'true'
+      # --- 5. TRIGGER MODULE B ---
+      - name: Run Secondary Diagnostic
         run: |
-          echo "Even hour detected. Executing secondary logic string (Module B)..."
+          echo "Executing secondary logic string..."
           curl -X POST "https://mrinoymitra1991-n8n-workflow-v5-integraded-github.hf.space/webhook/50431bd1-c408-4ecb-a926-16cf17c8fa09" \
           -H "Authorization: Bearer ${{ secrets.HF_TOKEN }}" \
           -H "Content-Type: application/json" \
           -d '{"source": "diagnostic_routine"}'
 
       # --- 6. POST-ROUTINE GAP ---
-      # This sleep ONLY happens on even hours.
       - name: Post-Routine Buffer (30 Min)
-        if: steps.router.outputs.run_full_cycle == 'true'
         run: |
           echo "Secondary module active. Holding for 30-minute completion..."
           sleep 1800
 
       # --- 7. POWER SAVE ---
       - name: Terminate Session
-        if: always() # Ensures space pauses even if a webhook fails
+        if: always() # Runs even if steps above failed
         run: |
           echo "Sequence complete. Entering power save..."
           curl -X POST https://huggingface.co/api/spaces/${{ secrets.SPACE_MAIN }}/pause \
